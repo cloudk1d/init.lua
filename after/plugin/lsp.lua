@@ -7,6 +7,11 @@ vim.diagnostic.config({
     },
 })
 
+-- 5.2 added this, I think to fix some noisy logs in the lsp logs. However it breaks the refresh of diagnostics, which is undesirable
+-- vim.lsp.handlers["workspace/diagnostic/refresh"] = function()
+--     return true
+-- end
+
 -- local on_attach = function(client, bufnr)
 --     -- Enable completion triggered by <c-x><c-o>
 --     vim.api.nvim_buf_set_option(bufnr, 'omnifunc', 'v:lua.vim.lsp.omnifunc')
@@ -72,7 +77,9 @@ vim.lsp.enable('lua_ls', {
 vim.lsp.config('terraformls', {
     capabilities = capabilities,
     cmd = { "terraform-ls", "serve" },
-    filetypes = { "terraform", "tf", "terraform-vars" },
+    filetypes = { "terraform", "tf", "terraform-vars", "hcl" },
+    single_file_support = false,
+    root_markers = { "main.tf" },
     init_options = {
         experimentalFeatures = {
             prefillRequiredFields = true,
@@ -82,6 +89,20 @@ vim.lsp.config('terraformls', {
         require('telescope').load_extension('terraform_doc')
         vim.keymap.set("n", "<Leader>td", ":Telescope terraform_doc full_name=hashicorp/azurerm<CR>",
             { noremap = true, silent = true })
+
+        vim.api.nvim_create_autocmd({ "BufEnter", "FocusGained" }, {
+            pattern = { "*.tf", "*.tfvars" },
+            callback = function(args)
+                local clients = vim.lsp.get_clients({ name = "terraformls", bufnr = args.buf })
+                if #clients == 0 then return end
+                for _, client in ipairs(clients) do
+                    client.stop()
+                end
+                vim.defer_fn(function()
+                    vim.cmd("LspStart terraformls")
+                end, 100)
+            end,
+        })
     end,
 })
 vim.lsp.enable('terraformls')
@@ -122,9 +143,9 @@ vim.lsp.enable('ansiblels', {
     }
 })
 
-vim.lsp.enable('html', {
+vim.lsp.config('html', {
     capabilities = capabilities,
-    filetypes = { "html", "blade", "markdown" },
+    filetypes = { "html", "html.edge", "edge", "blade", "markdown" },
     settings = {
         html = {
             format = {
@@ -134,6 +155,43 @@ vim.lsp.enable('html', {
     }
 })
 
+vim.lsp.enable('html')
+
+do
+    local util = require('lspconfig.util')
+
+    vim.lsp.config('edge', {
+        capabilities = capabilities,
+        cmd = { "node", "node_modules/edge-language-server/out/server.js", "--stdio" },
+        filetypes = { "edge", "html.edge" },
+        root_dir = function(fname)
+            local root = util.root_pattern('adonisrc.ts', 'package.json')(fname)
+            if not root then
+                return nil
+            end
+
+            local server = util.path.join(root, 'node_modules', 'edge-language-server', 'out', 'server.js')
+            if vim.fn.filereadable(server) ~= 1 then
+                vim.notify(
+                    "Edge LSP not found at " .. server .. ". Run npm i -D edge-language-server in this project.",
+                    vim.log.levels.WARN
+                )
+                return nil
+            end
+
+            return root
+        end,
+        on_new_config = function(config, root_dir)
+            local server = util.path.join(root_dir, 'node_modules', 'edge-language-server', 'out', 'server.js')
+            if vim.fn.filereadable(server) == 1 then
+                config.cmd = { 'node', server, '--stdio' }
+            end
+        end,
+    })
+
+    vim.lsp.enable('edge')
+end
+
 -- vim.lsp.enable('htmx', {
 --     capabilities = capabilities,
 --     filetypes = { "html", "templ" }
@@ -141,6 +199,7 @@ vim.lsp.enable('html', {
 
 vim.lsp.enable('cssls', {
     capabilities = capabilities,
+    filetypes = { "css", "scss", "less", "html.edge", "edge" },
     settings = {
         css = {
             validate = true,
@@ -155,11 +214,100 @@ vim.lsp.enable('cssls', {
     }
 })
 
-vim.lsp.enable('tailwindcss', {
-    capabilities = capabilities,
-    filetypes = { "html", "templ", "css", "blade" },
-    init_options = { userLanguages = { templ = "html" } },
-})
+do
+    local util = require('lspconfig.util')
+
+    local function tailwind_cmd_default()
+        local cwd = vim.loop.cwd()
+        local local_bin = util.path.join(cwd, 'node_modules', '.bin', 'tailwindcss-language-server')
+        if vim.fn.executable(local_bin) == 1 then
+            return { local_bin, '--stdio' }
+        end
+
+        local js_bin = util.path.join(cwd, 'node_modules', '@tailwindcss', 'language-server', 'bin',
+            'tailwindcss-language-server')
+        if vim.fn.filereadable(js_bin) == 1 then
+            return { 'node', js_bin, '--stdio' }
+        end
+
+        return { 'tailwindcss-language-server', '--stdio' }
+    end
+
+    local function tailwind_cmd(root_dir)
+        local local_bin = util.path.join(root_dir, 'node_modules', '.bin', 'tailwindcss-language-server')
+        if vim.fn.executable(local_bin) == 1 then
+            return { local_bin, '--stdio' }
+        end
+
+        local js_bin = util.path.join(root_dir, 'node_modules', '@tailwindcss', 'language-server', 'bin',
+            'tailwindcss-language-server')
+        if vim.fn.filereadable(js_bin) == 1 then
+            return { 'node', js_bin, '--stdio' }
+        end
+
+        return { 'tailwindcss-language-server', '--stdio' }
+    end
+
+    local function has_tailwind_dependency(root_dir)
+        local package_json = util.path.join(root_dir, 'package.json')
+        if vim.fn.filereadable(package_json) == 1 then
+            local ok, data = pcall(vim.fn.json_decode, table.concat(vim.fn.readfile(package_json), '\n'))
+            if ok and type(data) == 'table' then
+                local deps = {}
+                for _, group in ipairs({ 'dependencies', 'devDependencies', 'peerDependencies' }) do
+                    if type(data[group]) == 'table' then
+                        deps = vim.tbl_extend('force', deps, data[group])
+                    end
+                end
+
+                if deps['tailwindcss'] ~= nil or deps['@tailwindcss/vite'] ~= nil or deps['@tailwindcss/postcss'] ~= nil then
+                    return true
+                end
+            end
+        end
+
+        local tailwind_pkg = util.path.join(root_dir, 'node_modules', 'tailwindcss', 'package.json')
+        return vim.fn.filereadable(tailwind_pkg) == 1
+    end
+
+    vim.lsp.config('tailwindcss', {
+        capabilities = capabilities,
+        filetypes = { "html", "html.edge", "edge", "templ", "css", "blade" },
+        root_markers = {
+            'tailwind.config.js',
+            'tailwind.config.cjs',
+            'tailwind.config.ts',
+            'postcss.config.js',
+            'postcss.config.cjs',
+            'postcss.config.ts',
+            'package.json',
+            '.git',
+        },
+        cmd = tailwind_cmd_default(),
+        settings = {
+            tailwindCSS = {
+                includeLanguages = {
+                    templ = "html",
+                    edge = "html",
+                    ["html.edge"] = "html",
+                },
+            },
+        },
+        on_new_config = function(config, root_dir)
+            if not has_tailwind_dependency(root_dir) then
+                config.cmd = nil
+                config.autostart = false
+                return
+            end
+
+            config.cmd = tailwind_cmd(root_dir)
+        end,
+    })
+
+    vim.lsp.enable('tailwindcss', {
+        workspace_required = false,
+    })
+end
 
 vim.lsp.enable('gopls', {
     capabilities = capabilities,
@@ -205,15 +353,8 @@ vim.lsp.enable('templ', {
     capabilities = capabilities,
 })
 
-vim.lsp.enable('ts_ls', {
-    filetypes = { "templ" },
-    on_attach = on_attach,
-    capabilities = capabilities
-})
-
 vim.lsp.enable('eslint', {
     filetypes = { "templ" },
-    on_attach = on_attach,
     capabilities = capabilities
 })
 
@@ -250,7 +391,7 @@ vim.lsp.config('powershell_es', {
 
 vim.lsp.enable('powershell_es')
 
-vim.lsp.enable('jsonls', {
+vim.lsp.config('jsonls', {
     capabilities = capabilities,
     settings = {
         json = {
@@ -259,6 +400,8 @@ vim.lsp.enable('jsonls', {
         }
     }
 })
+
+vim.lsp.enable('jsonls')
 
 vim.lsp.enable('marksman', {})
 -- vim.lsp.enable('phpactor', {
@@ -329,26 +472,44 @@ vim.lsp.enable('sqlls', {})
 vim.lsp.enable('yamlls', {
     settings = {
         yaml = {
-            schemas = {
-                ['https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json'] =
-                '*.docker-compose.yml',
-                ['https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json'] =
-                '*.compose.yml',
-                ['https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json'] =
-                'docker-compose.yaml',
-                ['https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json'] =
-                'compose.yaml',
-            }
+            schemastore = {
+                enable = false,
+                url = "",
+            },
+            schemas = require('schemastore').yaml.schemas(),
+            -- NOTE: these schemas are for using the built-in schemastore (not the schemastore plugin)
+            -- schemas = {
+            --     ['https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json'] =
+            --     '*.docker-compose.yml',
+            --     ['https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json'] =
+            --     '*.compose.yml',
+            --     ['https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json'] =
+            --     'docker-compose.yaml',
+            --     ['https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json'] =
+            --     'compose.yaml',
+            -- }
         }
     }
 })
 
 vim.lsp.enable('dockerls', {})
 
-vim.lsp.enable('ts_ls', {
+vim.lsp.enable('docker_compose_language_service', {
     default_config = {
-        init_options = { hostInfo = 'neovim' },
-        cmd = { 'typescript-language-server', '--stdio' },
+        cmd = { 'docker-compose-langserver', '--stdio' },
+        filetypes = { 'yaml.docker-compose' },
+        root_dir = require('lspconfig.util').root_pattern('docker-compose.yml', 'docker-compose.yaml',
+            '*.docker-compose.yml',
+            '*.docker-compose.yaml', '.git'),
+        single_file_support = true,
+    }
+})
+
+do
+    local util = require('lspconfig.util')
+
+    vim.lsp.config('ts_ls', {
+        capabilities = capabilities,
         filetypes = {
             'javascript',
             'javascriptreact',
@@ -356,11 +517,21 @@ vim.lsp.enable('ts_ls', {
             'typescript',
             'typescriptreact',
             'typescript.tsx',
+            'html',
+            'edge',
+            'html.edge',
         },
         root_markers = { 'tsconfig.json', 'jsconfig.json', 'package.json', '.git' },
-        single_file_support = true,
-    },
-})
+        on_new_config = function(config, root_dir)
+            local tsserver = util.path.join(root_dir, 'node_modules', 'typescript', 'lib', 'tsserver.js')
+            if vim.fn.filereadable(tsserver) == 1 then
+                config.cmd = { 'typescript-language-server', '--stdio', '--tsserver-path', tsserver }
+            end
+        end,
+    })
+
+    vim.lsp.enable('ts_ls')
+end
 
 vim.lsp.enable('nil_ls', {
     autostart = true,

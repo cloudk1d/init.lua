@@ -171,6 +171,11 @@ _G.packer_plugins = {
     path = "/Users/jack/.local/share/nvim/site/pack/packer/opt/markdown-preview.nvim",
     url = "https://github.com/iamcco/markdown-preview.nvim"
   },
+  ["nvim-ansible"] = {
+    loaded = true,
+    path = "/Users/jack/.local/share/nvim/site/pack/packer/start/nvim-ansible",
+    url = "https://github.com/mfussenegger/nvim-ansible"
+  },
   ["nvim-cmp"] = {
     loaded = true,
     path = "/Users/jack/.local/share/nvim/site/pack/packer/start/nvim-cmp",

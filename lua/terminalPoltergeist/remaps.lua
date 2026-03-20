@@ -41,6 +41,9 @@ key.set("x", "<leader>p", "\"_dP")
 -- make "jump to mark" go to horizontal location too
 key.set("n", "'", "`", { noremap = true, silent = true })
 
+-- Alt+Shift+- to emdash. shift+- is read as _, so map alt+_ to emdash
+key.set("i", "<M-_>", "—")
+
 -- key.set("", "<Leader>lb", ":set linebreak<CR>", { noremap = true })
 -- key.set("", "<Leader>nb", ":set nolinebreak<CR>", { noremap = true })
 

@@ -46,7 +46,9 @@ return require('packer').startup(function(use)
 
     use({
         "nvim-telescope/telescope.nvim",
+        -- tag = "v0.2.1",
         -- branch = "0.1.x",
+        tag = "*",
         requires = {
             "nvim-lua/plenary.nvim",
             "ANGkeith/telescope-terraform-doc.nvim"
@@ -56,6 +58,7 @@ return require('packer').startup(function(use)
     use("wakatime/vim-wakatime")
     use("b0o/schemastore.nvim")
     -- use("pearofducks/ansible-vim")
+    use("mfussenegger/nvim-ansible")
     -- use("norcalli/nvim-colorizer.lua")
     use("NiklasV1/nvim-colorizer.lua") -- fork of ^ that fixes deprecated api usage
     use("f-person/git-blame.nvim")
@@ -91,7 +94,7 @@ return require('packer').startup(function(use)
     use({
         "prettier/vim-prettier",
         run = 'npm install',
-        ft = { 'javascript', 'blade', 'css', 'html' }
+        -- ft = { 'javascript', 'typescript', 'blade', 'css', 'html', 'edge' }
     })
 
     -- use("dense-analysis/ale") -- this caused duplicate diagnostic messages.. probably a way to disable it

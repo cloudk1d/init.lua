@@ -11,13 +11,13 @@
 --     copilot_enabled = not copilot_enabled
 -- end)
 
-require('copilot').setup({
-    suggestion = {
-        enabled = false,
-        -- auto_trigger = true,
-    },
-    panel = { enabled = false },
-    filetypes = {
-        yaml = true
-    }
-})
+-- require('copilot').setup({
+--     suggestion = {
+--         enabled = false,
+--         -- auto_trigger = true,
+--     },
+--     panel = { enabled = false },
+--     filetypes = {
+--         yaml = true
+--     }
+-- })

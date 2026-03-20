@@ -3,7 +3,17 @@ local api = vim.api
 api.nvim_create_augroup("formatting", { clear = true })
 api.nvim_create_autocmd({ "BufWritePre" }, {
     group = "formatting",
-    callback = function()
+    callback = function(args)
+        local filetype = vim.bo[args.buf].filetype
+        if filetype == "markdown" then
+            vim.lsp.buf.format({
+                filter = function(client)
+                    return client.name == "marksman"
+                end,
+            })
+            return
+        end
+
         vim.lsp.buf.format()
     end,
 })
@@ -21,6 +31,15 @@ api.nvim_create_autocmd({ "BufWritePre" }, {
 --         vim.cmd("TailwindSortSync")
 --     end,
 -- })
+
+api.nvim_create_augroup("lsp_ft", { clear = true })
+api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
+    pattern = { "docker-compose*.yml", "docker-compose*.yaml", "*.docker-compose.yml", "*.docker-compose.yaml" },
+    group = "lsp_ft",
+    callback = function()
+        vim.bo.filetype = "yaml.docker-compose"
+    end,
+})
 
 api.nvim_create_autocmd('VimEnter',
     { pattern = { "*.ps*", "*.pde" }, command = ":set colorcolumn=115" })

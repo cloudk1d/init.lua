@@ -44,7 +44,7 @@ telescope.setup({
         no_ignore = true,
         sorting_strategy = "ascending",
         file_ignore_patterns = {
-            ".git", "node_modules"
+            "%.git", "node_modules"
         },
         buffer_previewer_maker = truncate_large_files,
         results_title = (function()
@@ -80,6 +80,18 @@ telescope.setup({
         live_grep = {
             find_command = { "rg", "--hidden", "--glob", "!**/.git/*" },
             initial_mode = "insert"
+        },
+        lsp_definitions = {
+            file_ignore_patterns = {},
+        },
+        lsp_type_definitions = {
+            file_ignore_patterns = {},
+        },
+        lsp_implementations = {
+            file_ignore_patterns = {},
+        },
+        lsp_references = {
+            file_ignore_patterns = {},
         }
     },
 })

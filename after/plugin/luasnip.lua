@@ -1,5 +1,4 @@
 -- https://htlin222.medium.com/neovim-tips-utilizes-the-luasnip-and-ripgrep-tools-to-create-backlinks-in-markdown-9e5d245a2930
-
 local ls = require("luasnip")
 local i = ls.insert_node
 local s = ls.snippet
@@ -49,4 +48,22 @@ ls.add_snippets("markdown", {
         t({ 'public: false', '' }),
         t({ '---', '' }),
     }),
+})
+
+ls.add_snippets("html", {
+    ls.snippet("html5", { -- "html5" is the trigger
+        ls.text_node("<!DOCTYPE html>"),
+        ls.text_node("<html lang=\"en\">"),
+        ls.text_node("<head>"),
+        ls.text_node("    <meta charset=\"UTF-8\">"),
+        ls.text_node("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"),
+        ls.text_node("    <title>"),
+        ls.insert_node(1, "Document"), -- Placeholder 1
+        ls.text_node("</title>"),
+        ls.text_node("</head>"),
+        ls.text_node("<body>"),
+        ls.insert_node(0), -- Final cursor position (Placeholder 0)
+        ls.text_node("</body>"),
+        ls.text_node("</html>")
+    })
 })

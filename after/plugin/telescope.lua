@@ -57,6 +57,10 @@ telescope.setup({
                 ["dd"] = actions.delete_buffer,
                 ["q"] = actions.close,
                 ["<C-p>"] = require('telescope.actions.layout').toggle_preview,
+                ["<C-h>"] = require('telescope.actions').preview_scrolling_left,
+                ["<C-j>"] = require('telescope.actions').preview_scrolling_down,
+                ["<C-k>"] = require('telescope.actions').preview_scrolling_up,
+                ["<C-l>"] = require('telescope.actions').preview_scrolling_right,
             },
             i = {
                 ["<esc>"] = actions.close,

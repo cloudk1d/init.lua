@@ -4,7 +4,7 @@ require('cloak').setup({
     highlight_group = 'Comment',
     patterns = {
         {
-            file_pattern = '.env*',
+            file_pattern = '*.env*',
             cloak_pattern = '=.+'
         }
     }

@@ -74,34 +74,37 @@ vim.lsp.enable('lua_ls', {
     },
 })
 
+local terraform_doc_initialized = false
+
 vim.lsp.config('terraformls', {
     capabilities = capabilities,
     cmd = { "terraform-ls", "serve" },
-    filetypes = { "terraform", "tf", "terraform-vars", "hcl" },
-    single_file_support = false,
-    root_markers = { "main.tf" },
+    filetypes = { "terraform", "tf", "terraform-vars", "tfvars", "hcl" },
+    single_file_support = true,
+    root_markers = { ".terraform", ".git" },
     init_options = {
         experimentalFeatures = {
             prefillRequiredFields = true,
         },
     },
-    on_attach = function()
-        require('telescope').load_extension('terraform_doc')
-        vim.keymap.set("n", "<Leader>td", ":Telescope terraform_doc full_name=hashicorp/azurerm<CR>",
-            { noremap = true, silent = true })
+    on_attach = function(_, bufnr)
+        if not terraform_doc_initialized then
+            require('treesitter-terraform-doc').setup({})
+            terraform_doc_initialized = true
+        end
 
-        vim.api.nvim_create_autocmd({ "BufEnter", "FocusGained" }, {
-            pattern = { "*.tf", "*.tfvars" },
-            callback = function(args)
-                local clients = vim.lsp.get_clients({ name = "terraformls", bufnr = args.buf })
-                if #clients == 0 then return end
-                for _, client in ipairs(clients) do
-                    client.stop()
-                end
-                vim.defer_fn(function()
-                    vim.cmd("LspStart terraformls")
-                end, 100)
-            end,
+        vim.keymap.set("n", "<leader>td", "<cmd>OpenDoc<CR>", {
+            noremap = true,
+            silent = true,
+            buffer = bufnr,
+            desc = "Terraform docs for block under cursor",
+        })
+
+        vim.keymap.set("n", "<leader>tD", "<cmd>Telescope terraform_doc<CR>", {
+            noremap = true,
+            silent = true,
+            buffer = bufnr,
+            desc = "Terraform docs picker",
         })
     end,
 })

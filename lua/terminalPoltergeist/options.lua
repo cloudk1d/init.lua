@@ -21,6 +21,7 @@ o.swapfile = false
 o.incsearch = true
 o.termguicolors = true
 o.clipboard = "unnamedplus"
+o.autoread = true
 o.foldmethod = "expr"
 o.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 o.foldlevel = 100 -- fold any region containing more than 100 lines

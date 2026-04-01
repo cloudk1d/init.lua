@@ -53,3 +53,47 @@ api.nvim_create_autocmd('LspAttach', {
         -- vim.keymap.set("n", "gr", function() require('telescope.builtin').lsp_references() end, opts)
     end,
 })
+
+api.nvim_create_augroup("external_file_changes", { clear = true })
+api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI" }, {
+    group = "external_file_changes",
+    callback = function()
+        if vim.fn.mode() ~= "c" then
+            vim.cmd("checktime")
+        end
+    end,
+})
+
+local terraform_restart_pending = false
+
+local function schedule_terraform_restart()
+    if terraform_restart_pending then
+        return
+    end
+
+    terraform_restart_pending = true
+
+    vim.defer_fn(function()
+        terraform_restart_pending = false
+
+        local clients = vim.lsp.get_clients({ name = "terraformls" })
+        if #clients > 0 then
+            for _, client in ipairs(clients) do
+                client.stop()
+            end
+        end
+
+        vim.defer_fn(function()
+            pcall(vim.cmd, "LspStart terraformls")
+        end, 100)
+    end, 300)
+end
+
+api.nvim_create_augroup("terraform_lsp_sync", { clear = true })
+api.nvim_create_autocmd({ "FocusGained" }, {
+    group = "terraform_lsp_sync",
+    pattern = { "*.tf", "*.tfvars" },
+    callback = function()
+        schedule_terraform_restart()
+    end,
+})

@@ -7,6 +7,8 @@ vim.diagnostic.config({
     },
 })
 
+local util = require('lspconfig.util')
+
 -- 5.2 added this, I think to fix some noisy logs in the lsp logs. However it breaks the refresh of diagnostics, which is undesirable
 -- vim.lsp.handlers["workspace/diagnostic/refresh"] = function()
 --     return true
@@ -47,7 +49,7 @@ local capabilities = vim.lsp.protocol.make_client_capabilities()
 local cmp_capabilities = require('cmp_nvim_lsp').default_capabilities()
 capabilities = vim.tbl_deep_extend('force', capabilities, cmp_capabilities)
 
-vim.lsp.enable('lua_ls', {
+vim.lsp.config('lua_ls', {
     capabilities = capabilities,
     -- on_attach = custom_attach,
     settings = {
@@ -73,6 +75,7 @@ vim.lsp.enable('lua_ls', {
         },
     },
 })
+vim.lsp.enable('lua_ls')
 
 local terraform_doc_initialized = false
 
@@ -132,7 +135,7 @@ vim.lsp.enable('terraformls')
 --     end,
 -- })
 
-vim.lsp.enable('ansiblels', {
+vim.lsp.config('ansiblels', {
     capabilities = capabilities,
     root_markers = { '.git' },
     settings = {
@@ -145,6 +148,7 @@ vim.lsp.enable('ansiblels', {
         }
     }
 })
+vim.lsp.enable('ansiblels')
 
 vim.lsp.config('html', {
     capabilities = capabilities,
@@ -161,8 +165,6 @@ vim.lsp.config('html', {
 vim.lsp.enable('html')
 
 do
-    local util = require('lspconfig.util')
-
     vim.lsp.config('edge', {
         capabilities = capabilities,
         cmd = { "node", "node_modules/edge-language-server/out/server.js", "--stdio" },
@@ -200,7 +202,7 @@ end
 --     filetypes = { "html", "templ" }
 -- })
 
-vim.lsp.enable('cssls', {
+vim.lsp.config('cssls', {
     capabilities = capabilities,
     filetypes = { "css", "scss", "less", "html.edge", "edge" },
     settings = {
@@ -216,10 +218,9 @@ vim.lsp.enable('cssls', {
         },
     }
 })
+vim.lsp.enable('cssls')
 
 do
-    local util = require('lspconfig.util')
-
     local function tailwind_cmd_default()
         local cwd = vim.loop.cwd()
         local local_bin = util.path.join(cwd, 'node_modules', '.bin', 'tailwindcss-language-server')
@@ -275,6 +276,7 @@ do
 
     vim.lsp.config('tailwindcss', {
         capabilities = capabilities,
+        workspace_required = false,
         filetypes = { "html", "html.edge", "edge", "templ", "css", "blade" },
         root_markers = {
             'tailwind.config.js',
@@ -307,12 +309,10 @@ do
         end,
     })
 
-    vim.lsp.enable('tailwindcss', {
-        workspace_required = false,
-    })
+    vim.lsp.enable('tailwindcss')
 end
 
-vim.lsp.enable('gopls', {
+vim.lsp.config('gopls', {
     capabilities = capabilities,
     -- on_attach = function(client, bufnr)
     --   -- require("shared").on_attach(client, bufnr)
@@ -351,15 +351,18 @@ vim.lsp.enable('gopls', {
         },
     },
 })
+vim.lsp.enable('gopls')
 
-vim.lsp.enable('templ', {
+vim.lsp.config('templ', {
     capabilities = capabilities,
 })
+vim.lsp.enable('templ')
 
-vim.lsp.enable('eslint', {
+vim.lsp.config('eslint', {
     filetypes = { "templ" },
     capabilities = capabilities
 })
+vim.lsp.enable('eslint')
 
 vim.lsp.config('powershell_es', {
     capabilities = capabilities,
@@ -406,11 +409,11 @@ vim.lsp.config('jsonls', {
 
 vim.lsp.enable('jsonls')
 
-vim.lsp.enable('marksman', {})
+vim.lsp.enable('marksman')
 -- vim.lsp.enable('phpactor', {
 --     capabilities = capabilities,
 -- })
-vim.lsp.enable('intelephense', {
+vim.lsp.config('intelephense', {
     filetypes = { "php" },
     commands = {
         IntelephenseIndex = {
@@ -433,23 +436,22 @@ vim.lsp.enable('intelephense', {
         },
     },
     capabilities = capabilities,
-    on_attach = vim.api.nvim_create_autocmd(
-        "BufWritePre",
-        {
-            pattern = "*.php",
+    on_attach = function(_, bufnr)
+        vim.api.nvim_create_autocmd("BufWritePre", {
+            buffer = bufnr,
             callback = function()
                 vim.cmd("let view = winsaveview() | silent! %s/fn(/fn (/g | call winrestview(view)")
             end,
-        }
-    )
+        })
+    end,
 })
+vim.lsp.enable('intelephense')
 
-vim.lsp.enable('pbls', {
-    default_config = {
-        cmd = { '/Users/jack/.cargo/bin/pbls' },
-        filetypes = { 'proto' }
-    }
+vim.lsp.config('pbls', {
+    cmd = { '/Users/jack/.cargo/bin/pbls' },
+    filetypes = { 'proto' }
 })
+vim.lsp.enable('pbls')
 
 -- require('lspconfig').pbls.setup({})
 
@@ -463,16 +465,14 @@ vim.lsp.enable('pbls', {
 --     }
 -- })
 
-vim.lsp.enable('sqlls', {
-    default_config = {
-        cmd = { 'sql-language-server', 'up', '--method', 'stdio' },
-        filetypes = { 'sql' },
-        root_markers = { '.git' },
-    }
+vim.lsp.config('sqlls', {
+    cmd = { 'sql-language-server', 'up', '--method', 'stdio' },
+    filetypes = { 'sql' },
+    root_markers = { '.git' },
 })
-vim.lsp.enable('sqlls', {})
+vim.lsp.enable('sqlls')
 
-vim.lsp.enable('yamlls', {
+vim.lsp.config('yamlls', {
     settings = {
         yaml = {
             schemastore = {
@@ -494,23 +494,20 @@ vim.lsp.enable('yamlls', {
         }
     }
 })
+vim.lsp.enable('yamlls')
 
-vim.lsp.enable('dockerls', {})
+vim.lsp.enable('dockerls')
 
-vim.lsp.enable('docker_compose_language_service', {
-    default_config = {
-        cmd = { 'docker-compose-langserver', '--stdio' },
-        filetypes = { 'yaml.docker-compose' },
-        root_dir = require('lspconfig.util').root_pattern('docker-compose.yml', 'docker-compose.yaml',
-            '*.docker-compose.yml',
-            '*.docker-compose.yaml', '.git'),
-        single_file_support = true,
-    }
+vim.lsp.config('docker_compose_language_service', {
+    cmd = { 'docker-compose-langserver', '--stdio' },
+    filetypes = { 'yaml.docker-compose' },
+    root_dir = util.root_pattern('docker-compose.yml', 'docker-compose.yaml', '*.docker-compose.yml',
+        '*.docker-compose.yaml', '.git'),
+    single_file_support = true,
 })
+vim.lsp.enable('docker_compose_language_service')
 
 do
-    local util = require('lspconfig.util')
-
     vim.lsp.config('ts_ls', {
         capabilities = capabilities,
         filetypes = {
@@ -536,10 +533,11 @@ do
     vim.lsp.enable('ts_ls')
 end
 
-vim.lsp.enable('nil_ls', {
+vim.lsp.config('nil_ls', {
     autostart = true,
     capabilities = capabilities,
 })
+vim.lsp.enable('nil_ls')
 
 -- require('lspconfig.configs').alpinejsls = {
 --     default_config = {

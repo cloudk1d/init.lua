@@ -51,6 +51,16 @@ api.nvim_create_autocmd('LspAttach', {
         local opts = { buffer = e.buf }
         vim.keymap.set("n", "gd", function() require('telescope.builtin').lsp_definitions() end, opts)
         -- vim.keymap.set("n", "gr", function() require('telescope.builtin').lsp_references() end, opts)
+
+        local client = vim.lsp.get_client_by_id(e.data.client_id)
+        if client and client.name == "terraformls" and vim.api.nvim_get_current_buf() == e.buf and vim.fn.mode() == "i" then
+            vim.schedule(function()
+                local ok, cmp = pcall(require, "cmp")
+                if ok then
+                    cmp.complete()
+                end
+            end)
+        end
     end,
 })
 
@@ -64,36 +74,66 @@ api.nvim_create_autocmd({ "FocusGained", "BufEnter", "CursorHold", "CursorHoldI"
     end,
 })
 
-local terraform_restart_pending = false
+local terraform_restart_pending = {}
 
-local function schedule_terraform_restart()
-    if terraform_restart_pending then
+local function cleanup_orphan_terraform_clients()
+    local clients = vim.lsp.get_clients({ name = "terraformls" })
+    for _, client in ipairs(clients) do
+        if #vim.lsp.get_buffers_by_client_id(client.id) == 0 then
+            vim.lsp.stop_client(client.id, true)
+        end
+    end
+end
+
+local function schedule_terraform_restart(bufnr)
+    if terraform_restart_pending[bufnr] then
         return
     end
 
-    terraform_restart_pending = true
+    terraform_restart_pending[bufnr] = true
 
     vim.defer_fn(function()
-        terraform_restart_pending = false
+        terraform_restart_pending[bufnr] = nil
+        cleanup_orphan_terraform_clients()
 
-        local clients = vim.lsp.get_clients({ name = "terraformls" })
-        if #clients > 0 then
-            for _, client in ipairs(clients) do
-                client.stop()
+        if not vim.api.nvim_buf_is_valid(bufnr) then
+            return
+        end
+
+        local clients = vim.lsp.get_clients({ name = "terraformls", bufnr = bufnr })
+        for _, client in ipairs(clients) do
+            vim.lsp.buf_detach_client(bufnr, client.id)
+
+            local attached_bufs = vim.lsp.get_buffers_by_client_id(client.id)
+            if #attached_bufs == 0 then
+                vim.lsp.stop_client(client.id, true)
             end
         end
 
         vim.defer_fn(function()
-            pcall(vim.cmd, "LspStart terraformls")
+            if not vim.api.nvim_buf_is_valid(bufnr) then
+                return
+            end
+
+            if #vim.lsp.get_clients({ name = "terraformls", bufnr = bufnr }) > 0 then
+                cleanup_orphan_terraform_clients()
+                return
+            end
+
+            vim.api.nvim_buf_call(bufnr, function()
+                pcall(vim.cmd, "LspStart terraformls")
+            end)
+
+            vim.defer_fn(cleanup_orphan_terraform_clients, 200)
         end, 100)
     end, 300)
 end
 
 api.nvim_create_augroup("terraform_lsp_sync", { clear = true })
-api.nvim_create_autocmd({ "FocusGained" }, {
+api.nvim_create_autocmd({ "BufWritePost" }, {
     group = "terraform_lsp_sync",
     pattern = { "*.tf", "*.tfvars" },
-    callback = function()
-        schedule_terraform_restart()
+    callback = function(args)
+        schedule_terraform_restart(args.buf)
     end,
 })

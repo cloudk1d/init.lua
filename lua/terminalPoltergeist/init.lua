@@ -1,6 +1,6 @@
 require("terminalPoltergeist.options")
 require("terminalPoltergeist.remaps")
 require("terminalPoltergeist.autocmd")
-require("terminalPoltergeist.packer")
+require("terminalPoltergeist.pack")
 require("terminalPoltergeist.colors")
 vim.cmd("source ~/.config/nvim/lua/terminalPoltergeist/functions.vim")
